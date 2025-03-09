@@ -37,5 +37,7 @@ namespace DataAccessObject.Models
         public virtual ICollection<Review> Reviews { get; set; }
         public virtual ICollection<ProductOrder> ProductOrders { get; set; }
         public virtual ICollection<Payment> Payments { get; set; }
+
+        public virtual ICollection<PaymentTransaction> PaymentTransactions { get; set; }
     }
 }
