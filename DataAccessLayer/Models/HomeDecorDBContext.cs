@@ -57,6 +57,8 @@ namespace DataAccessObject.Models
         public DbSet<ChatFile> ChatFiles { get; set; }
         //test
         public DbSet<DeviceToken> DeviceTokens { get; set; }
+        public DbSet<Wallet> Wallets { get; set; }
+        public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -148,6 +150,12 @@ namespace DataAccessObject.Models
                 .HasOne(a => a.Provider)
                 .WithOne(d => d.Account)
                 .HasForeignKey<Provider>(d => d.AccountId);
+
+            // Configure 1-1 relationship between Account and Wallet
+            modelBuilder.Entity<Account>()
+                .HasOne(a => a.Wallet)
+                .WithOne(d => d.Account)
+                .HasForeignKey<Wallet>(d => d.AccountId);
 
             // Configure 1-N relationship between Booking and DecorService
             modelBuilder.Entity<Booking>()
@@ -335,6 +343,20 @@ namespace DataAccessObject.Models
                 .WithMany(pp => pp.Payments)
                 .HasForeignKey(p => p.PaymentPhaseId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<PaymentTransaction>()
+                .HasOne(p => p.Wallet)
+                .WithMany(pp => pp.Transactions)
+                .HasForeignKey(p => p.WalletId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Wallet>()
+                .Property(w => w.Balance)
+                .HasColumnType("decimal(18,2)");
+
+            modelBuilder.Entity<PaymentTransaction>()
+                .Property(p => p.Amount)
+                .HasColumnType("decimal(18,2)");
 
             modelBuilder.Entity<Role>().HasData(
                 new Role { Id = 1, RoleName = "Admin" },
