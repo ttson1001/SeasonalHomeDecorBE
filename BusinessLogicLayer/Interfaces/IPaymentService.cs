@@ -11,6 +11,6 @@ namespace BusinessLogicLayer.Interfaces
         Task<bool> TopUp(int accountId, decimal amount);
         Task<bool> Deposit(int customerId, int adminId, decimal amount, int bookingId);
         Task<bool> Refund(int accountId, decimal amount, int bookingId, int adminId);
-        Task<bool> Pay(int accountId, decimal bookingAmount, int providerId, int bookingId;
+        Task<bool> Pay(int accountId, decimal bookingAmount, int providerId, int bookingId);
     }
 }

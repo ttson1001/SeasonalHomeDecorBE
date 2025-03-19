@@ -23,7 +23,6 @@ namespace Repository.UnitOfWork
             RoleRepository = new RoleRepository(_context);
             DecorCategoryRepository = new DecorCategoryRepository(_context);
             ChatRepository = new ChatRepository(_context);
-            ProviderRepository = new ProviderRepository(_context);
             ProductRepository = new ProductRepository(_context);
             ProductImageRepository = new ProductImageRepository(_context);
             ProductCategoryRepository = new ProductCategoryRepository(_context);
@@ -43,12 +42,14 @@ namespace Repository.UnitOfWork
             PaymentPhaseRepository = new PaymentPhaseRepository(_context);
             WalletRepository = new WalletRepository(_context);
             WalletTransactionRepository = new WalletTransactionRepository(_context);
-            PaymentTractionRepository = new PaymentTractionRepository(_context);
-
+            PaymentTractionRepository = new PaymentTransactionRepository(_context);
+            SettingRepository = new SettingReposiotry(_context);
+            ContactRepository = new ContactRepository(_context);
+            FavoriteServiceRepository = new FavoriteServiceRepository(_context);
+            SeasonRepository = new SeasonRepository(_context);
         }
 
         public IAccountRepository AccountRepository { get; private set; }
-        public IProviderRepository ProviderRepository { get; private set; }
         public IRoleRepository RoleRepository { get; private set; }
         public IDecorCategoryRepository DecorCategoryRepository { get; private set; }
         public IChatRepository ChatRepository { get; private set; }
@@ -74,6 +75,12 @@ namespace Repository.UnitOfWork
         public IPaymentTractionRepository PaymentTractionRepository { get; }
 
         public IWalletTransactionRepository WalletTransactionRepository { get; }
+
+        public IContactRepository ContactRepository { get; private set; }
+        public IFavoriteServiceRepository FavoriteServiceRepository { get; private set; }
+        public ISeasonRepository SeasonRepository { get; private set; }
+
+        public ISettingRepository SettingRepository { get; private set; }
 
         public void Dispose()
         {

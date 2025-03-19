@@ -1,8 +1,10 @@
 ﻿using BusinessLogicLayer.Interfaces;
 using BusinessLogicLayer.ModelRequest;
+using BusinessLogicLayer.ModelRequest.Pagination;
 using BusinessLogicLayer.ModelResponse;
 using DataAccessObject.Models;
 using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Repository.UnitOfWork;
 using System;
 using System.Collections.Generic;
@@ -26,24 +28,17 @@ namespace BusinessLogicLayer.Services
             _notificationService = notificationService;
         }
 
-        public async Task<List<ChatMessageResponse>> GetChatHistoryAsync(int senderId, int receiverId)
+        public async Task<BaseResponse> GetChatHistoryAsync(int senderId, int receiverId)
         {
-            // Lấy danh sách Chat entity và include ChatFiles, Sender và Receiver
             var chats = await _unitOfWork.ChatRepository.GetChatHistoryAsync(senderId, receiverId);
 
-            var response = chats.Select(chat => new ChatMessageResponse
+            var chatMessages = chats.Select(chat => new ChatMessageResponse
             {
                 Id = chat.Id,
                 SenderId = chat.SenderId,
-                // Kết hợp FirstName và LastName của Sender (nếu có)
-                SenderName = chat.Sender != null
-                                ? $"{chat.Sender.FirstName} {chat.Sender.LastName}"
-                                : null,
+                SenderName = chat.Sender != null ? $"{chat.Sender.FirstName} {chat.Sender.LastName}" : null,
                 ReceiverId = chat.ReceiverId,
-                // Kết hợp FirstName và LastName của Receiver (nếu có)
-                ReceiverName = chat.Receiver != null
-                                ? $"{chat.Receiver.FirstName} {chat.Receiver.LastName}"
-                                : null,
+                ReceiverName = chat.Receiver != null ? $"{chat.Receiver.FirstName} {chat.Receiver.LastName}" : null,
                 Message = chat.Message,
                 SentTime = chat.SentTime,
                 IsRead = chat.IsRead,
@@ -56,60 +51,62 @@ namespace BusinessLogicLayer.Services
                 }).ToList()
             }).ToList();
 
-            return response;
+            return new BaseResponse
+            {
+                Success = true,
+                Message = "Chat history retrieved successfully",
+                Errors = new List<string>(),
+                Data = chatMessages
+            };
         }
 
-        public async Task<ChatMessageResponse> SendMessageWithFilesAsync(int senderId, ChatMessageRequest request, IEnumerable<IFormFile> formFiles)
+        public async Task<ChatMessageResponse> SendMessageAsync(int senderId, ChatMessageRequest request)
         {
             if (senderId == request.ReceiverId)
             {
                 throw new InvalidOperationException("Cannot send a message to yourself.");
             }
 
-            // Tạo entity Chat
             var chat = new Chat
             {
                 SenderId = senderId,
                 ReceiverId = request.ReceiverId,
                 Message = request.Message,
-                SentTime = DateTime.UtcNow,
-                IsRead = false
+                SentTime = DateTime.UtcNow.ToLocalTime(),
+                IsRead = false,
+                ChatFiles = new List<ChatFile>()
             };
 
-            // Upload và thêm ChatFile
-            foreach (var formFile in formFiles)
+            foreach (var file in request.Files)
             {
-                using var stream = formFile.OpenReadStream();
-                var fileUrl = await _cloudinaryService.UploadFileAsync(stream, formFile.FileName);
+                var fileBytes = Convert.FromBase64String(file.Base64Content);
+                using var stream = new MemoryStream(fileBytes);
 
-                var chatFile = new ChatFile
+                var fileUrl = await _cloudinaryService.UploadFileAsync(stream, file.FileName);
+
+                chat.ChatFiles.Add(new ChatFile
                 {
-                    FileName = formFile.FileName,
+                    FileName = file.FileName,
                     FileUrl = fileUrl
-                };
-                chat.ChatFiles.Add(chatFile);
+                });
             }
 
-            // Lưu chat vào DB
             await _unitOfWork.ChatRepository.InsertAsync(chat);
             await _unitOfWork.CommitAsync();
 
-            // Tạo đối tượng Notification cho tin nhắn mới
             var notification = new Notification
             {
                 Title = "New Message",
-                Content = chat.Message, // Hoặc bạn có thể định dạng lại nội dung hiển thị thông báo
-                NotifiedAt = DateTime.UtcNow,
+                Content = chat.Message,
+                NotifiedAt = DateTime.UtcNow.ToLocalTime(),
                 AccountId = chat.ReceiverId,
                 SenderId = chat.SenderId,
                 Type = NotificationType.Chat
             };
 
-            // Gọi NotificationService để lưu và gửi realtime notification
             await _notificationService.SendNotificationAsync(notification);
 
-            // Map sang response
-            var response = new ChatMessageResponse
+            return new ChatMessageResponse
             {
                 Id = chat.Id,
                 SenderId = chat.SenderId,
@@ -125,20 +122,50 @@ namespace BusinessLogicLayer.Services
                     UploadedAt = cf.UploadedAt
                 }).ToList()
             };
-
-            return response;
         }
 
-        public async Task MarkMessagesAsReadAsync(int receiverId, int senderId)
+        public async Task<BaseResponse> MarkMessagesAsReadAsync(int receiverId, int senderId)
         {
-            var unreadMessages = await _unitOfWork.ChatRepository.GetUnreadMessagesAsync(receiverId, senderId);
+            await _unitOfWork.ChatRepository.MarkMessagesAsReadAsync(receiverId, senderId);
 
-            foreach (var message in unreadMessages)
+            return new BaseResponse
             {
-                message.IsRead = true;
-                _unitOfWork.ChatRepository.Update(message); // Update ko async => ko await
-            }
-            await _unitOfWork.CommitAsync();
+                Success = true,
+                Message = "Messages marked as read successfully",
+                Errors = new List<string>(),
+                Data = new List<object>() // Dữ liệu rỗng nhưng vẫn là []
+            };
+        }
+
+        public async Task<BaseResponse> GetUnreadMessagesAsync(int userId)
+        {
+            var unreadMessages = await _unitOfWork.ChatRepository.GetUnreadMessagesAsync(userId);
+
+            var messageList = unreadMessages.Select(chat => new ChatMessageResponse
+            {
+                Id = chat.Id,
+                SenderId = chat.SenderId,
+                SenderName = chat.Sender != null ? $"{chat.Sender.FirstName} {chat.Sender.LastName}" : null,
+                ReceiverId = chat.ReceiverId,
+                Message = chat.Message,
+                SentTime = chat.SentTime,
+                IsRead = chat.IsRead,
+                Files = chat.ChatFiles.Select(cf => new ChatFileResponse
+                {
+                    FileId = cf.Id,
+                    FileName = cf.FileName,
+                    FileUrl = cf.FileUrl,
+                    UploadedAt = cf.UploadedAt
+                }).ToList()
+            }).ToList();
+
+            return new BaseResponse
+            {
+                Success = true,
+                Message = "Unread messages retrieved successfully.",
+                Errors = new List<string>(),
+                Data = messageList
+            };
         }
     }
 }

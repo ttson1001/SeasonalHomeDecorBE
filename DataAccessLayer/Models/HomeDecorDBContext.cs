@@ -33,8 +33,9 @@ namespace DataAccessObject.Models
         public DbSet<Role> Roles { get; set; }
         public DbSet<Account> Accounts { get; set; }
         public DbSet<Follow> Follows { get; set; }
-        public DbSet<Provider> Providers { get; set; }
         public DbSet<DecorService> DecorServices { get; set; }
+        public DbSet<Season> Seasons { get; set; }
+        public DbSet<DecorServiceSeason> DecorServiceSeasons { get; set; }
         public DbSet<DecorImage> DecorImages { get; set; }
         public DbSet<DecorCategory> DecorCategories { get; set; }
         public DbSet<Booking> Bookings { get; set; }
@@ -55,10 +56,12 @@ namespace DataAccessObject.Models
         public DbSet<TicketAttachment> TicketAttachments { get; set; }
         public DbSet<Chat> Chats { get; set; }
         public DbSet<ChatFile> ChatFiles { get; set; }
-        //test
-        public DbSet<DeviceToken> DeviceTokens { get; set; }
         public DbSet<Wallet> Wallets { get; set; }
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
+        //test
+        public DbSet<DeviceToken> DeviceTokens { get; set; }
+        public DbSet<Contact> Contacts { get; set; }
+        public DbSet<FavoriteService> FavoriteServices { get; set; }
         public DbSet<WalletTransaction> WalletTransactions { get; set; }
         public DbSet<Setting> Settings { get; set; }
 
@@ -95,6 +98,17 @@ namespace DataAccessObject.Models
                 .HasOne(di => di.DecorService)
                 .WithMany(ds => ds.DecorImages)
                 .HasForeignKey(di => di.DecorServiceId);
+
+            // Configure Many-to-Many between DecorService and Season
+            modelBuilder.Entity<DecorServiceSeason>()
+                .HasOne(dss => dss.DecorService)
+                .WithMany(ds => ds.DecorServiceSeasons)
+                .HasForeignKey(dss => dss.DecorServiceId);
+
+            modelBuilder.Entity<DecorServiceSeason>()
+                .HasOne(dss => dss.Season)
+                .WithMany(s => s.DecorServiceSeasons)
+                .HasForeignKey(dss => dss.SeasonId);
 
             // Configure 1-N relationship between Account and Support
             modelBuilder.Entity<Support>()
@@ -147,12 +161,6 @@ namespace DataAccessObject.Models
                 .WithMany(a => a.Reviews)
                 .HasForeignKey(r => r.AccountId);
 
-            // Configure 1-1 relationship between Account and Provider
-            modelBuilder.Entity<Account>()
-                .HasOne(a => a.Provider)
-                .WithOne(d => d.Account)
-                .HasForeignKey<Provider>(d => d.AccountId);
-
             // Configure 1-1 relationship between Account and Wallet
             modelBuilder.Entity<Account>()
                 .HasOne(a => a.Wallet)
@@ -162,7 +170,7 @@ namespace DataAccessObject.Models
             // Configure 1-N relationship between Booking and DecorService
             modelBuilder.Entity<Booking>()
                 .HasOne(b => b.DecorService)
-                .WithMany(ds => ds.Bookings)  // thay đổi từ WithOne sang WithMany
+                .WithMany(ds => ds.Bookings)
                 .HasForeignKey(b => b.DecorServiceId)
                 .OnDelete(DeleteBehavior.NoAction);
 
@@ -201,11 +209,11 @@ namespace DataAccessObject.Models
                 .HasForeignKey<Cart>(c => c.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Configure 1-N relationship between Product and Provider
+            // Configure 1-N relationship between Product and Account
             modelBuilder.Entity<Product>()
-                .HasOne(p => p.Provider)
+                .HasOne(p => p.Account)
                 .WithMany(pr => pr.Products)
-                .HasForeignKey(p => p.ProviderId)
+                .HasForeignKey(p => p.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             // Configure 1-N relationship between ProductImage and Product
@@ -287,14 +295,6 @@ namespace DataAccessObject.Models
                 .IsRequired(false)
                 .OnDelete(DeleteBehavior.NoAction);
 
-            // Configure 1-N relationship between Subscription and Provider
-            modelBuilder.Entity<Provider>()
-                .HasOne(p => p.Subscription)
-                .WithMany(sb => sb.Providers)
-                .HasForeignKey(a => a.SubscriptionId)
-                .IsRequired(false)
-                .OnDelete(DeleteBehavior.NoAction);
-
             modelBuilder.Entity<Chat>()
                 .HasOne(c => c.Sender)
                 .WithMany()
@@ -346,6 +346,36 @@ namespace DataAccessObject.Models
                 .HasForeignKey(p => p.PaymentPhaseId)
                 .OnDelete(DeleteBehavior.NoAction);
 
+            modelBuilder.Entity<Contact>()
+                .HasOne(c => c.User)
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Contact>()
+                .HasOne(c => c.ContactUser)
+                .WithMany()
+                .HasForeignKey(c => c.ContactId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<FavoriteService>()
+                .HasOne(f => f.DecorService)
+                .WithMany(d => d.FavoriteServices)
+                .HasForeignKey(f => f.DecorServiceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<FavoriteService>()
+                .HasOne(f => f.Account)
+                .WithMany(a => a.FavoriteServices)
+                .HasForeignKey(f => f.AccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<FavoriteService>()
+                .HasOne(f => f.DecorService)
+                .WithMany(ds => ds.FavoriteServices)
+                .HasForeignKey(f => f.DecorServiceId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             modelBuilder.Entity<Wallet>()
                 .Property(w => w.Balance)
                 .HasColumnType("decimal(18,2)");
@@ -354,7 +384,7 @@ namespace DataAccessObject.Models
                 new Role { Id = 1, RoleName = "Admin" },
                 new Role { Id = 2, RoleName = "Provider" },
                 new Role { Id = 3, RoleName = "Customer" }
-            );
+            );      
 
             modelBuilder.Entity<Subscription>().HasData(
                 new Subscription { Id = 1, Name = "Basic", Description = "Normal Package", Price = 0, Duration = 999 }
@@ -375,6 +405,32 @@ namespace DataAccessObject.Models
                 new ProductCategory { Id = 12, CategoryName = "Hanger"},
                 new ProductCategory { Id = 13, CategoryName = "Closet"},
                 new ProductCategory { Id = 14, CategoryName = "Vanity"}
+            );
+
+            modelBuilder.Entity<DecorCategory>().HasData(
+                new DecorCategory { Id = 1, CategoryName = "Living Room" },
+                new DecorCategory { Id = 2, CategoryName = "Bedroom" },
+                new DecorCategory { Id = 3, CategoryName = "Kitchen" },
+                new DecorCategory { Id = 4, CategoryName = "Bathroom" },
+                new DecorCategory { Id = 5, CategoryName = "Home Office" },
+                new DecorCategory { Id = 6, CategoryName = "Balcony & Garden" },
+                new DecorCategory { Id = 8, CategoryName = "Dining Room" },
+                new DecorCategory { Id = 9, CategoryName = "Entertainment Room" }
+            );
+
+            modelBuilder.Entity<Season>().HasData(
+                new Season { Id = 1, SeasonName = "Spring" },
+                new Season { Id = 2, SeasonName = "Summer" },
+                new Season { Id = 3, SeasonName = "Autumn" },
+                new Season { Id = 4, SeasonName = "Winter" },
+                new Season { Id = 5, SeasonName = "Christmas" },
+                new Season { Id = 6, SeasonName = "Tet" },
+                new Season { Id = 7, SeasonName = "Valentine" },
+                new Season { Id = 8, SeasonName = "Halloween" },
+                new Season { Id = 9, SeasonName = "Easter" },
+                new Season { Id = 10, SeasonName = "Birthday" },
+                new Season { Id = 11, SeasonName = "Wedding" },
+                new Season { Id = 12, SeasonName = "Anniversary" }
             );
         }
     }

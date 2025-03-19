@@ -20,6 +20,7 @@ namespace BusinessLogicLayer.Services
             _mapper = mapper;
         }
 
+        // amount = giá booking * comission (0.1)  setiing 
         public async Task<bool> Deposit(int customerId, int adminId, decimal amount, int bookingId)
         {
             using (var transaction = await _unitOfWork.BeginTransactionAsync()) // Bắt đầu giao dịch
@@ -31,6 +32,9 @@ namespace BusinessLogicLayer.Services
                     {
                         throw new Exception("Số tiền gửi phải lớn hơn 0.");
                     }
+                    var comission = _unitOfWork.SettingRepository.Queryable().First().Commission;
+
+                    var deposit = amount * comission;
 
                     // Lấy thông tin ví của khách hàng và Admin
                     var cusAccount = _unitOfWork.AccountRepository.Queryable()
@@ -50,19 +54,19 @@ namespace BusinessLogicLayer.Services
                     var adWallet = adAccount.Wallet;
 
                     // Kiểm tra số dư khách hàng
-                    if (cusWallet.Balance < amount)
+                    if (cusWallet.Balance < deposit)
                     {
                         throw new Exception("Số dư không đủ.");
                     }
 
                     // Cập nhật số dư ví
-                    await walletService.UpdateWallet(cusWallet.Id, cusWallet.Balance - amount);
-                    await walletService.UpdateWallet(adWallet.Id, adWallet.Balance + amount);
+                    await walletService.UpdateWallet(cusWallet.Id, cusWallet.Balance - deposit);
+                    await walletService.UpdateWallet(adWallet.Id, adWallet.Balance + deposit);
 
                     // Tạo giao dịch
                     var newTransaction = new PaymentTransaction
                     {
-                        Amount = amount,
+                        Amount = deposit,
                         TransactionDate = DateTime.Now,
                         TransactionStatus = PaymentTransaction.EnumTransactionStatus.Success,
                         TransactionType = PaymentTransaction.EnumTransactionType.Revenue,
@@ -98,7 +102,6 @@ namespace BusinessLogicLayer.Services
                 }
             }
         }
-
 
         public async Task<bool> TopUp(int accountId, decimal amount)
         {
@@ -158,7 +161,6 @@ namespace BusinessLogicLayer.Services
                 }
             }
         }
-
 
         public async Task<bool> Refund(int accountId, decimal amount, int bookingId, int adminId)
         {
@@ -238,10 +240,9 @@ namespace BusinessLogicLayer.Services
             }
         }
 
-
         public async Task<bool> Pay(int accountId, decimal bookingAmount, int providerId, int bookingId)
         {
-            using (var transaction =  await _unitOfWork.BeginTransactionAsync()) // Bắt đầu giao dịch
+            using (var transaction = await _unitOfWork.BeginTransactionAsync()) // Bắt đầu giao dịch
             {
                 try
                 {

@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 using Net.payOS.Types;
 using Net.payOS;
 using Repository.UnitOfWork;
-using BusinessLogicLayer.POS;
+using BusinessLogicLayer.Utilities.POS;
 using BusinessLogicLayer.Interfaces;
 
 namespace BusinessLogicLayer.Services
@@ -44,7 +44,7 @@ namespace BusinessLogicLayer.Services
                     return response;
                 }
                 // Nếu account là provider, không được book
-                if (account.Provider != null && account.Provider.IsProvider)
+                if (account.IsProvider == true) // ✅ Kiểm tra trực tiếp từ Account
                 {
                     response.Message = "Providers are not allowed to book services.";
                     return response;

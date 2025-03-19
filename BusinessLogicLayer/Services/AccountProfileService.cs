@@ -46,15 +46,8 @@ namespace BusinessLogicLayer.Services
                     };
                 }
 
-                // Lấy thông tin Provider dựa trên AccountId
-                var providerRecord = await _unitOfWork.ProviderRepository
-                    .Query(p => p.AccountId == account.Id)
-                    .FirstOrDefaultAsync();
-                bool isProvider = providerRecord != null ? providerRecord.IsProvider : false;
-
                 // Map account sang AccountDTO và gán thêm trường isProvider
                 var accountDto = _mapper.Map<AccountDTO>(account);
-                accountDto.IsProvider = isProvider;  // Đảm bảo rằng AccountDTO có thuộc tính IsProvider
 
                 return new AccountResponse
                 {

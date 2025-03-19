@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace Repository.Repositories
 {
-    public class SettingReposiotry : GenericRepository<Setting>, ISettingRepository
+    public class SettingRepository : GenericRepository<Setting>, ISettingRepository
     {
-        public SettingReposiotry(HomeDecorDBContext context) : base(context)
+        public SettingRepository(HomeDecorDBContext context) : base(context)
         {
         }
     }

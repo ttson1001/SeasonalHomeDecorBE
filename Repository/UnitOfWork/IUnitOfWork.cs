@@ -11,7 +11,6 @@ namespace Repository.UnitOfWork
     public interface IUnitOfWork : IDisposable
     {
         IAccountRepository AccountRepository { get; }
-        IProviderRepository ProviderRepository { get; }
         IRoleRepository RoleRepository { get; }
         IDecorCategoryRepository DecorCategoryRepository { get; }
         IChatRepository ChatRepository { get; }
@@ -35,6 +34,10 @@ namespace Repository.UnitOfWork
         IWalletRepository WalletRepository { get; }
         IPaymentTractionRepository PaymentTractionRepository { get; }
         IWalletTransactionRepository WalletTransactionRepository { get; }
+        IContactRepository ContactRepository { get; }
+        IFavoriteServiceRepository FavoriteServiceRepository { get; }
+        ISeasonRepository SeasonRepository { get; }
+        ISettingRepository SettingRepository { get; }
         int Save();
         Task CommitAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();

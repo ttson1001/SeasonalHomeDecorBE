@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DataAccessObject.Migrations
 {
     [DbContext(typeof(HomeDecorDBContext))]
-    [Migration("20250307154000_InitDb")]
-    partial class InitDb
+    [Migration("20250319150230_Add_Setting")]
+    partial class Add_Setting
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -35,6 +35,15 @@ namespace DataAccessObject.Migrations
                     b.Property<string>("Avatar")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Bio")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BusinessAddress")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("BusinessName")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<DateTime?>("DateOfBirth")
                         .HasColumnType("datetime2");
 
@@ -52,8 +61,14 @@ namespace DataAccessObject.Migrations
                     b.Property<bool>("IsDisable")
                         .HasColumnType("bit");
 
+                    b.Property<bool?>("IsProvider")
+                        .HasColumnType("bit");
+
                     b.Property<bool>("IsVerified")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime>("JoinedDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("LastName")
                         .IsRequired()
@@ -65,6 +80,9 @@ namespace DataAccessObject.Migrations
 
                     b.Property<string>("Phone")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool?>("ProviderVerified")
+                        .HasColumnType("bit");
 
                     b.Property<string>("ResetPasswordToken")
                         .HasColumnType("nvarchar(max)");
@@ -328,6 +346,32 @@ namespace DataAccessObject.Migrations
                     b.ToTable("ChatFiles");
                 });
 
+            modelBuilder.Entity("DataAccessObject.Models.Contact", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<int>("ContactId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContactId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Contacts");
+                });
+
             modelBuilder.Entity("DataAccessObject.Models.DecorCategory", b =>
                 {
                     b.Property<int>("Id")
@@ -340,13 +384,51 @@ namespace DataAccessObject.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
                     b.HasKey("Id");
 
                     b.ToTable("DecorCategories");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CategoryName = "Living Room"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CategoryName = "Bedroom"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CategoryName = "Kitchen"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CategoryName = "Bathroom"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            CategoryName = "Home Office"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            CategoryName = "Balcony & Garden"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            CategoryName = "Dining Room"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            CategoryName = "Entertainment Room"
+                        });
                 });
 
             modelBuilder.Entity("DataAccessObject.Models.DecorImage", b =>
@@ -415,6 +497,29 @@ namespace DataAccessObject.Migrations
                     b.ToTable("DecorServices");
                 });
 
+            modelBuilder.Entity("DataAccessObject.Models.DecorServiceSeason", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<int>("DecorServiceId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SeasonId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DecorServiceId");
+
+                    b.HasIndex("SeasonId");
+
+                    b.ToTable("DecorServiceSeasons");
+                });
+
             modelBuilder.Entity("DataAccessObject.Models.DeviceToken", b =>
                 {
                     b.Property<int>("Id")
@@ -442,6 +547,32 @@ namespace DataAccessObject.Migrations
                     b.HasIndex("AccountId");
 
                     b.ToTable("DeviceTokens");
+                });
+
+            modelBuilder.Entity("DataAccessObject.Models.FavoriteService", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DecorServiceId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId");
+
+                    b.HasIndex("DecorServiceId");
+
+                    b.ToTable("FavoriteServices");
                 });
 
             modelBuilder.Entity("DataAccessObject.Models.Follow", b =>
@@ -639,6 +770,41 @@ namespace DataAccessObject.Migrations
                     b.ToTable("PaymentPhase");
                 });
 
+            modelBuilder.Entity("DataAccessObject.Models.PaymentTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int?>("BookingId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("TransactionDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("TransactionStatus")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TransactionType")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BookingId");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("PaymentTransactions");
+                });
+
             modelBuilder.Entity("DataAccessObject.Models.Product", b =>
                 {
                     b.Property<int>("Id")
@@ -646,6 +812,9 @@ namespace DataAccessObject.Migrations
                         .HasColumnType("int");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("int");
 
                     b.Property<int>("CategoryId")
                         .HasColumnType("int");
@@ -666,9 +835,6 @@ namespace DataAccessObject.Migrations
                     b.Property<double>("ProductPrice")
                         .HasColumnType("float");
 
-                    b.Property<int>("ProviderId")
-                        .HasColumnType("int");
-
                     b.Property<int?>("Quantity")
                         .HasColumnType("int");
 
@@ -680,9 +846,9 @@ namespace DataAccessObject.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CategoryId");
+                    b.HasIndex("AccountId");
 
-                    b.HasIndex("ProviderId");
+                    b.HasIndex("CategoryId");
 
                     b.ToTable("Products");
                 });
@@ -835,45 +1001,6 @@ namespace DataAccessObject.Migrations
                     b.ToTable("ProductOrders");
                 });
 
-            modelBuilder.Entity("DataAccessObject.Models.Provider", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
-
-                    b.Property<int>("AccountId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Address")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Bio")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<bool>("IsProvider")
-                        .HasColumnType("bit");
-
-                    b.Property<DateTime>("JoinedDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Name")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("SubscriptionId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AccountId")
-                        .IsUnique();
-
-                    b.HasIndex("SubscriptionId");
-
-                    b.ToTable("Providers");
-                });
-
             modelBuilder.Entity("DataAccessObject.Models.Review", b =>
                 {
                     b.Property<int>("Id")
@@ -955,6 +1082,101 @@ namespace DataAccessObject.Migrations
                             Id = 3,
                             RoleName = "Customer"
                         });
+                });
+
+            modelBuilder.Entity("DataAccessObject.Models.Season", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<string>("SeasonName")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Seasons");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            SeasonName = "Spring"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            SeasonName = "Summer"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            SeasonName = "Autumn"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            SeasonName = "Winter"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            SeasonName = "Christmas"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            SeasonName = "Tet"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            SeasonName = "Valentine"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            SeasonName = "Halloween"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            SeasonName = "Easter"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            SeasonName = "Birthday"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            SeasonName = "Wedding"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            SeasonName = "Anniversary"
+                        });
+                });
+
+            modelBuilder.Entity("DataAccessObject.Models.Setting", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<decimal>("Commission")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Settings");
                 });
 
             modelBuilder.Entity("DataAccessObject.Models.Subscription", b =>
@@ -1149,6 +1371,51 @@ namespace DataAccessObject.Migrations
                     b.ToTable("Vouchers");
                 });
 
+            modelBuilder.Entity("DataAccessObject.Models.Wallet", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<int>("AccountId")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Balance")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId")
+                        .IsUnique();
+
+                    b.ToTable("Wallets");
+                });
+
+            modelBuilder.Entity("DataAccessObject.Models.WalletTransaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"), 1L, 1);
+
+                    b.Property<int>("PaymentTransactionId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("WalletId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaymentTransactionId");
+
+                    b.HasIndex("WalletId");
+
+                    b.ToTable("WalletTransactions");
+                });
+
             modelBuilder.Entity("DataAccessObject.Models.Account", b =>
                 {
                     b.HasOne("DataAccessObject.Models.Role", "Role")
@@ -1270,6 +1537,25 @@ namespace DataAccessObject.Migrations
                     b.Navigation("Chat");
                 });
 
+            modelBuilder.Entity("DataAccessObject.Models.Contact", b =>
+                {
+                    b.HasOne("DataAccessObject.Models.Account", "ContactUser")
+                        .WithMany()
+                        .HasForeignKey("ContactId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DataAccessObject.Models.Account", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ContactUser");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("DataAccessObject.Models.DecorImage", b =>
                 {
                     b.HasOne("DataAccessObject.Models.DecorService", "DecorService")
@@ -1300,6 +1586,25 @@ namespace DataAccessObject.Migrations
                     b.Navigation("DecorCategory");
                 });
 
+            modelBuilder.Entity("DataAccessObject.Models.DecorServiceSeason", b =>
+                {
+                    b.HasOne("DataAccessObject.Models.DecorService", "DecorService")
+                        .WithMany("DecorServiceSeasons")
+                        .HasForeignKey("DecorServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DataAccessObject.Models.Season", "Season")
+                        .WithMany("DecorServiceSeasons")
+                        .HasForeignKey("SeasonId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("DecorService");
+
+                    b.Navigation("Season");
+                });
+
             modelBuilder.Entity("DataAccessObject.Models.DeviceToken", b =>
                 {
                     b.HasOne("DataAccessObject.Models.Account", "Account")
@@ -1309,6 +1614,25 @@ namespace DataAccessObject.Migrations
                         .IsRequired();
 
                     b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("DataAccessObject.Models.FavoriteService", b =>
+                {
+                    b.HasOne("DataAccessObject.Models.Account", "Account")
+                        .WithMany("FavoriteServices")
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("DataAccessObject.Models.DecorService", "DecorService")
+                        .WithMany("FavoriteServices")
+                        .HasForeignKey("DecorServiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("DecorService");
                 });
 
             modelBuilder.Entity("DataAccessObject.Models.Follow", b =>
@@ -1416,23 +1740,38 @@ namespace DataAccessObject.Migrations
                     b.Navigation("Booking");
                 });
 
+            modelBuilder.Entity("DataAccessObject.Models.PaymentTransaction", b =>
+                {
+                    b.HasOne("DataAccessObject.Models.Booking", "Booking")
+                        .WithMany("PaymentTransactions")
+                        .HasForeignKey("BookingId");
+
+                    b.HasOne("DataAccessObject.Models.Order", "Order")
+                        .WithMany("PaymentTransactions")
+                        .HasForeignKey("OrderId");
+
+                    b.Navigation("Booking");
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("DataAccessObject.Models.Product", b =>
                 {
+                    b.HasOne("DataAccessObject.Models.Account", "Account")
+                        .WithMany("Products")
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("DataAccessObject.Models.ProductCategory", "Category")
                         .WithMany("Products")
                         .HasForeignKey("CategoryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DataAccessObject.Models.Provider", "Provider")
-                        .WithMany("Products")
-                        .HasForeignKey("ProviderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.Navigation("Account");
 
                     b.Navigation("Category");
-
-                    b.Navigation("Provider");
                 });
 
             modelBuilder.Entity("DataAccessObject.Models.ProductImage", b =>
@@ -1463,24 +1802,6 @@ namespace DataAccessObject.Migrations
                     b.Navigation("Order");
 
                     b.Navigation("Product");
-                });
-
-            modelBuilder.Entity("DataAccessObject.Models.Provider", b =>
-                {
-                    b.HasOne("DataAccessObject.Models.Account", "Account")
-                        .WithOne("Provider")
-                        .HasForeignKey("DataAccessObject.Models.Provider", "AccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("DataAccessObject.Models.Subscription", "Subscription")
-                        .WithMany("Providers")
-                        .HasForeignKey("SubscriptionId")
-                        .OnDelete(DeleteBehavior.NoAction);
-
-                    b.Navigation("Account");
-
-                    b.Navigation("Subscription");
                 });
 
             modelBuilder.Entity("DataAccessObject.Models.Review", b =>
@@ -1567,6 +1888,36 @@ namespace DataAccessObject.Migrations
                     b.Navigation("Support");
                 });
 
+            modelBuilder.Entity("DataAccessObject.Models.Wallet", b =>
+                {
+                    b.HasOne("DataAccessObject.Models.Account", "Account")
+                        .WithOne("Wallet")
+                        .HasForeignKey("DataAccessObject.Models.Wallet", "AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("DataAccessObject.Models.WalletTransaction", b =>
+                {
+                    b.HasOne("DataAccessObject.Models.PaymentTransaction", "PaymentTransaction")
+                        .WithMany("WalletTransactions")
+                        .HasForeignKey("PaymentTransactionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("DataAccessObject.Models.Wallet", "Wallet")
+                        .WithMany("WalletTransactions")
+                        .HasForeignKey("WalletId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PaymentTransaction");
+
+                    b.Navigation("Wallet");
+                });
+
             modelBuilder.Entity("DataAccessObject.Models.Account", b =>
                 {
                     b.Navigation("Addresses");
@@ -1580,6 +1931,8 @@ namespace DataAccessObject.Migrations
 
                     b.Navigation("DeviceTokens");
 
+                    b.Navigation("FavoriteServices");
+
                     b.Navigation("Followers");
 
                     b.Navigation("Followings");
@@ -1590,14 +1943,16 @@ namespace DataAccessObject.Migrations
 
                     b.Navigation("Payments");
 
-                    b.Navigation("Provider")
-                        .IsRequired();
+                    b.Navigation("Products");
 
                     b.Navigation("Reviews");
 
                     b.Navigation("Supports");
 
                     b.Navigation("TicketReplies");
+
+                    b.Navigation("Wallet")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("DataAccessObject.Models.Address", b =>
@@ -1608,6 +1963,8 @@ namespace DataAccessObject.Migrations
             modelBuilder.Entity("DataAccessObject.Models.Booking", b =>
                 {
                     b.Navigation("PaymentPhases");
+
+                    b.Navigation("PaymentTransactions");
 
                     b.Navigation("Payments");
 
@@ -1635,10 +1992,16 @@ namespace DataAccessObject.Migrations
                     b.Navigation("Bookings");
 
                     b.Navigation("DecorImages");
+
+                    b.Navigation("DecorServiceSeasons");
+
+                    b.Navigation("FavoriteServices");
                 });
 
             modelBuilder.Entity("DataAccessObject.Models.Order", b =>
                 {
+                    b.Navigation("PaymentTransactions");
+
                     b.Navigation("Payments");
 
                     b.Navigation("ProductOrders");
@@ -1649,6 +2012,11 @@ namespace DataAccessObject.Migrations
             modelBuilder.Entity("DataAccessObject.Models.PaymentPhase", b =>
                 {
                     b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("DataAccessObject.Models.PaymentTransaction", b =>
+                {
+                    b.Navigation("WalletTransactions");
                 });
 
             modelBuilder.Entity("DataAccessObject.Models.Product", b =>
@@ -1665,21 +2033,19 @@ namespace DataAccessObject.Migrations
                     b.Navigation("Products");
                 });
 
-            modelBuilder.Entity("DataAccessObject.Models.Provider", b =>
-                {
-                    b.Navigation("Products");
-                });
-
             modelBuilder.Entity("DataAccessObject.Models.Role", b =>
                 {
                     b.Navigation("Accounts");
                 });
 
+            modelBuilder.Entity("DataAccessObject.Models.Season", b =>
+                {
+                    b.Navigation("DecorServiceSeasons");
+                });
+
             modelBuilder.Entity("DataAccessObject.Models.Subscription", b =>
                 {
                     b.Navigation("Accounts");
-
-                    b.Navigation("Providers");
                 });
 
             modelBuilder.Entity("DataAccessObject.Models.Support", b =>
@@ -1706,6 +2072,11 @@ namespace DataAccessObject.Migrations
                     b.Navigation("Carts");
 
                     b.Navigation("Orders");
+                });
+
+            modelBuilder.Entity("DataAccessObject.Models.Wallet", b =>
+                {
+                    b.Navigation("WalletTransactions");
                 });
 #pragma warning restore 612, 618
         }

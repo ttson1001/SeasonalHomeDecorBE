@@ -144,13 +144,18 @@ namespace Repository.GenericRepository
         int pageSize,
         Expression<Func<T, object>> orderByExpression = null,
         bool descending = false,
-        Expression<Func<T, object>>[]? includeProperties = null)
+        Expression<Func<T, object>>[]? includeProperties = null,
+        Func<IQueryable<T>, IQueryable<T>>? customQuery = null)
         {
             IQueryable<T> query = _context.Set<T>();
 
-            if (filter != null && _context.Set<T>().Any(filter))
+            if (filter != null)
             {
                 query = query.Where(filter);
+            }
+            else
+            {
+                query = query.Where(e => false);
             }
 
             if (includeProperties != null)
@@ -159,6 +164,11 @@ namespace Repository.GenericRepository
                 {
                     query = query.Include(includeProperty);
                 }
+            }
+
+            if (customQuery != null)
+            {
+                query = customQuery(query);
             }
 
             if (orderByExpression != null)

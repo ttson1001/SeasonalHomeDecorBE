@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 
 namespace Repository.Repositories
 {
-    public class PaymentTractionRepository : GenericRepository<PaymentPhase>, IPaymentPhaseRepository
+    public class PaymentTransactionRepository : GenericRepository<PaymentTransaction>, IPaymentTractionRepository
     {
-        public PaymentTractionRepository(HomeDecorDBContext context) : base(context)
+        public PaymentTransactionRepository(HomeDecorDBContext context) : base(context)
         {
         }
     }

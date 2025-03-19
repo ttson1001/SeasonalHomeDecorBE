@@ -9,13 +9,13 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.Filters;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using BusinessLogicLayer.Hub;
 using BusinessLogicLayer.Services;
 using Repository.Repositories;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore.Design;
 using Nest;
 using Net.payOS;
+using BusinessLogicLayer.Utilities.Hub;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,7 +34,7 @@ builder.Services.AddControllers()
            options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.Preserve;
            options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
            options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
-           options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); // Convert number to text in enum
+           // options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()); // Convert number to text in enum
        });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -48,6 +48,7 @@ builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = true;
     options.KeepAliveInterval = TimeSpan.FromSeconds(15);
+    options.MaximumReceiveMessageSize = 10 * 1024 * 1024;
 });
 
 // 3. Configure CORS
@@ -99,6 +100,16 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             OnTokenValidated = context =>
             {
                 Console.WriteLine("Token validated successfully");
+                return Task.CompletedTask;
+            },
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"]; // 🔥 Lấy token từ query
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/chatHub"))
+                {
+                    context.Token = accessToken; // ✅ Gán token cho context
+                }
                 return Task.CompletedTask;
             }
         };
@@ -175,6 +186,10 @@ builder.Services.AddScoped<IAddressService, AddressService>();
 builder.Services.AddScoped<IDecorServiceService, DecorServiceService>();
 builder.Services.AddScoped<IElasticClientService, ElasticClientService>();
 builder.Services.AddScoped<IBookingService, BookingService>();
+builder.Services.AddScoped<IContactRepository, ContactRepository>();
+builder.Services.AddScoped<IContactService, ContactService>();
+builder.Services.AddScoped<IFavoriteServiceService, FavoriteServiceService>();
+builder.Services.AddScoped<ISeasonService, SeasonService>();
 
 // 11. Build the application
 var app = builder.Build();
@@ -197,13 +212,13 @@ app.UseHttpsRedirection();
 // CORS must be configured before Authentication and Authorization
 app.UseCors("AllowAll");
 
-// Map SignalR hub
-app.MapHub<ChatHub>("/chatHub");
-app.MapHub<NotificationHub>("/notificationHub");
-
 // The order here is important
 app.UseAuthentication();    // Authentication
 app.UseAuthorization();     // Authorization
+
+// Map SignalR hub
+app.MapHub<ChatHub>("/chatHub");
+app.MapHub<NotificationHub>("/notificationHub");
 
 app.MapControllers();
 

@@ -1,5 +1,7 @@
 ﻿using BusinessLogicLayer.Interfaces;
 using BusinessLogicLayer.ModelRequest;
+using BusinessLogicLayer.ModelRequest.Pagination;
+using BusinessLogicLayer.ModelResponse;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -25,10 +27,31 @@ namespace SeasonalHomeDecorAPI.Controllers
             return BadRequest(result.Message);
         }
 
+        [HttpGet("getPaginated")]
+        public async Task<IActionResult> GetPaginatedDecorService([FromQuery]DecorServiceFilterRequest request)
+        {
+            var result = await  _decorServiceService.GetFilterDecorServicesAsync(request);
+
+            if (result.Success)
+            {
+                return Ok(result);
+            }
+            return BadRequest(result.Message);
+        }
+
         [HttpGet("{id}")]
         public async Task<IActionResult> GetDecorService(int id)
         {
             var result = await _decorServiceService.GetDecorServiceByIdAsync(id);
+            if (result.Success)
+                return Ok(result);
+            return NotFound(result.Message);
+        }
+
+        [HttpGet("getDecorServiceByProvider/{slug}")]
+        public async Task<IActionResult> GetDecorServiceByProvider(string slug)
+        {
+            var result = await _decorServiceService.GetDecorServiceBySlugAsync(slug);
             if (result.Success)
                 return Ok(result);
             return NotFound(result.Message);
@@ -94,13 +117,34 @@ namespace SeasonalHomeDecorAPI.Controllers
             return BadRequest(result.Message);
         }
 
+        //[HttpGet("search")]
+        //public async Task<IActionResult> Search([FromQuery] string keyword)
+        //{
+        //    var result = await _decorServiceService.SearchDecorServices(keyword);
+        //    if (!result.Success)
+        //        return BadRequest(result);
+        //    return Ok(result);
+        //}
+
         [HttpGet("search")]
-        public async Task<IActionResult> Search([FromQuery] string keyword)
+        public async Task<IActionResult> SearchMultiCriteria(
+            [FromQuery] string? Style,
+            [FromQuery] string? Province,
+            [FromQuery] string? CategoryName,
+            [FromQuery] string? SeasonName)
         {
-            var result = await _decorServiceService.SearchDecorServices(keyword);
-            if (!result.Success)
-                return BadRequest(result);
-            return Ok(result);
+            var request = new SearchDecorServiceRequest
+            {
+                Style = Style,
+                Province = Province,
+                CategoryName = CategoryName,
+                SeasonName = SeasonName
+            };
+
+            var result = await _decorServiceService.SearchMultiCriteriaDecorServices(request);
+            if (result.Success)
+                return Ok(result);
+            return BadRequest(result);
         }
     }
 }
