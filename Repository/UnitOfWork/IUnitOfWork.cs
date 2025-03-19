@@ -32,6 +32,9 @@ namespace Repository.UnitOfWork
         IReviewRepository ReviewRepository { get; }
         IBookingRepository BookingRepository { get; }
         IPaymentPhaseRepository PaymentPhaseRepository { get; }
+        IWalletRepository WalletRepository { get; }
+        IPaymentTractionRepository PaymentTractionRepository { get; }
+        IWalletTransactionRepository WalletTransactionRepository { get; }
         int Save();
         Task CommitAsync();
         Task<IDbContextTransaction> BeginTransactionAsync();

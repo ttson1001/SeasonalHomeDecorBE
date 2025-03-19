@@ -27,5 +27,6 @@ namespace Repository.GenericRepository
            bool descending = false,
            Expression<Func<T, object>>[]? includeProperties = null);
         IQueryable<T> Query(Expression<Func<T, bool>> filter);
+        IQueryable<T> Queryable();
     }
 }

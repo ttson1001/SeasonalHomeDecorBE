@@ -8,18 +8,13 @@ using System.Threading.Tasks;
 
 namespace DataAccessObject.Models
 {
-    public class Wallet
+    public class Setting
     {
+
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public int Id { get; set; }
 
-        public int AccountId { get; set; }
-
-        public decimal Balance { get; set; }
-
-        public virtual Account Account { get; set; }
-
-        public virtual ICollection<WalletTransaction> WalletTransactions { get; set; }
+        public decimal Commission { get; set; }
     }
 }
