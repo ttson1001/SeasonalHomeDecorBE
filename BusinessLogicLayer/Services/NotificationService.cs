@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using BusinessLogicLayer.Hub;
 using BusinessLogicLayer.Interfaces;
 using DataAccessObject.Models;
 using Microsoft.AspNetCore.SignalR;
@@ -11,6 +10,7 @@ using Repository.Interfaces;
 using DataAccessObject.Models;
 using BusinessLogicLayer.ModelResponse;
 using AutoMapper;
+using BusinessLogicLayer.Utilities.Hub;
 
 namespace BusinessLogicLayer.Services
 {
@@ -51,17 +51,17 @@ namespace BusinessLogicLayer.Services
                              .SendAsync("ReceiveNotification", response);
 
             // Gửi push notification qua FCM cho từng token
-            var deviceTokens = await _deviceTokenRepository.GetTokensByAccountIdAsync(notification.AccountId);
-            foreach (var token in deviceTokens)
-            {
-                var data = new Dictionary<string, string>
-        {
-            { "type", "chat" },
-            { "notificationId", notification.Id.ToString() }
-        };
+        //    var deviceTokens = await _deviceTokenRepository.GetTokensByAccountIdAsync(notification.AccountId);
+        //    foreach (var token in deviceTokens)
+        //    {
+        //        var data = new Dictionary<string, string>
+        //{
+        //    { "type", "chat" },
+        //    { "notificationId", notification.Id.ToString() }
+        //};
 
-                await _fcmService.SendPushNotificationAsync(token.Token, "Tin nhắn mới", notification.Content, data);
-            }
+        //        await _fcmService.SendPushNotificationAsync(token.Token, "Tin nhắn mới", notification.Content, data);
+        //    }
 
             return response;
         }

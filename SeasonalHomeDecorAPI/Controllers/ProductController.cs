@@ -1,4 +1,5 @@
 ﻿using BusinessLogicLayer.Interfaces;
+using BusinessLogicLayer.ModelRequest.Pagination;
 using BusinessLogicLayer.ModelRequest.Product;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -26,6 +27,20 @@ namespace SeasonalHomeDecorAPI.Controllers
             {
                 return Ok(result);
             }
+
+            return BadRequest();     
+        }
+
+        [HttpGet("getPaginatedList")]
+        public async Task<IActionResult> GetFilterProduct([FromQuery] ProductFilterRequest request)
+        {
+            var result = await _productService.GetPaginate(request);
+
+            if (result.Success)
+            {
+                return Ok(result);
+            }
+
             return BadRequest();
         }
 
@@ -38,18 +53,46 @@ namespace SeasonalHomeDecorAPI.Controllers
             {
                 return Ok(result);
             }
+
             return BadRequest();
         }
 
-        [HttpGet("getProductByProvider/{id}")]
-        public async Task<IActionResult> GetProductByProvider(int id)
+        [HttpGet("getPaginatedListByCategory")]
+        public async Task<IActionResult> GetFilterByCategory([FromQuery] FilterByCategoryRequest request)
         {
-            var result = await _productService.GetProductByProviderId(id);
+            var result = await _productService.GetPaginateByCategory(request);
 
             if (result.Success)
             {
                 return Ok(result);
             }
+
+            return BadRequest();
+        }
+
+        [HttpGet("getProductByProvider/{slug}")]
+        public async Task<IActionResult> GetProductByProvider(string slug)
+        {
+            var result = await _productService.GetProductByProvider(slug);
+
+            if (result.Success)
+            {
+                return Ok(result);
+            }
+
+            return BadRequest();
+        }
+
+        [HttpGet("getPaginatedListByProvider")]
+        public async Task<IActionResult> GetFilterByProvider([FromQuery] FilterByProviderRequest request)
+        {
+            var result = await _productService.GetPaginateByProvider(request);
+
+            if (result.Success)
+            {
+                return Ok(result);
+            }
+
             return BadRequest();
         }
 

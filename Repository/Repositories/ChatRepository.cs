@@ -19,32 +19,51 @@ namespace Repository.Repositories
 
         public async Task<IEnumerable<Chat>> GetChatHistoryAsync(int senderId, int receiverId)
         {
-            Expression<Func<Chat, bool>> filter = c =>
-                 c.SenderId == senderId && c.ReceiverId == receiverId ||
-                 c.SenderId == receiverId && c.ReceiverId == senderId;
-
-            // Include ChatFiles để load file đính kèm
             return await GetAllAsync(
-            limit: 100,
-            filter: filter,
-            orderBy: q => q.OrderByDescending(x => x.SentTime),
-            includeProperties: new Expression<Func<Chat, object>>[]
-            {
-                c => c.ChatFiles,
-                c => c.Sender,
-                c => c.Receiver
-            });
+                limit: 1000,
+                filter: c => (c.SenderId == senderId && c.ReceiverId == receiverId) ||
+                             (c.SenderId == receiverId && c.ReceiverId == senderId),
+                orderBy: q => q.OrderBy(c => c.SentTime),
+                includeProperties: new Expression<Func<Chat, object>>[] { c => c.Sender, c => c.Receiver, c => c.ChatFiles }
+            );
         }
 
-        public async Task<IEnumerable<Chat>> GetUnreadMessagesAsync(int receiverId, int senderId)
+        public async Task<IEnumerable<Chat>> GetUnreadMessagesAsync(int receiverId)
         {
-            Expression<Func<Chat, bool>> filter = c =>
-                c.ReceiverId == receiverId &&
-                c.SenderId == senderId &&
-                !c.IsRead;
+            return await GetAllAsync(
+                limit: int.MaxValue,
+                filter: c => c.ReceiverId == receiverId && c.IsRead == false,
+                orderBy: q => q.OrderBy(c => c.SentTime),
+                includeProperties: new Expression<Func<Chat, object>>[] { c => c.Sender, c => c.ChatFiles }
+            );
+        }
 
-            return await GetAllAsync(100, filter,  // Thêm limit parameter
-                orderBy: q => q.OrderByDescending(x => x.SentTime));
+        public async Task MarkMessagesAsReadAsync(int receiverId, int senderId)
+        {
+            var unreadMessages = await _context.Chats
+                .Where(c => c.ReceiverId == receiverId && c.SenderId == senderId && !c.IsRead)
+                .ToListAsync();
+
+            if (!unreadMessages.Any()) return;
+
+            unreadMessages.ForEach(m => m.IsRead = true);
+
+            _context.Chats.UpdateRange(unreadMessages); // Dùng UpdateRange thay vì cập nhật từng cái một
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<Chat>> GetUserChatAsync(int userId)
+        {
+            return await GetAllAsync(
+                limit: int.MaxValue,
+                filter: c => c.SenderId == userId || c.ReceiverId == userId,
+                orderBy: q => q.OrderByDescending(x => x.SentTime),
+                includeProperties: new Expression<Func<Chat, object>>[]
+                {
+            c => c.Sender,
+            c => c.Receiver
+                }
+            );
         }
     }
 }

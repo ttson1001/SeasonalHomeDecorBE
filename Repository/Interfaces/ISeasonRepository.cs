@@ -8,7 +8,7 @@ using Repository.GenericRepository;
 
 namespace Repository.Interfaces
 {
-    public interface IDecoratorRepository : IGenericRepository<Provider>
+    public interface ISeasonRepository : IGenericRepository<Season>
     {
     }
 }

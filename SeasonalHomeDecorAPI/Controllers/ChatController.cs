@@ -1,7 +1,10 @@
 ﻿using BusinessLogicLayer.Interfaces;
 using BusinessLogicLayer.ModelRequest;
+using BusinessLogicLayer.ModelResponse;
+using BusinessLogicLayer.Utilities.Hub;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 
 namespace SeasonalHomeDecorAPI.Controllers
@@ -16,59 +19,30 @@ namespace SeasonalHomeDecorAPI.Controllers
         public ChatController(IChatService chatService)
         {
             _chatService = chatService;
+
         }
 
         // Lấy lịch sử giữa senderId (lấy từ token) và receiverId
-        [HttpGet("history/{receiverId}")]
-        public async Task<IActionResult> GetChatHistory(int receiverId)
+        [HttpGet("chat-history/{userId}")]
+        public async Task<IActionResult> GetChatHistory(int userId)
         {
-            try
-            {
-                var senderId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
 
-                // Giờ hàm trả về List<ChatMessageResponse>
-                var history = await _chatService.GetChatHistoryAsync(senderId, receiverId);
-                return Ok(history);
-            }
-            catch (Exception ex)
+            if (currentUserId == 0)
             {
-                return BadRequest(new { message = ex.Message });
+                return Unauthorized(new { message = "Invalid token or user ID" });
             }
+
+            var response = await _chatService.GetChatHistoryAsync(currentUserId, userId);
+            return Ok(response); // ✅ Trả về nguyên BaseResponse, không chỉnh sửa
         }
 
-        // Gửi tin nhắn kèm file (qua multipart/form-data)
-        [HttpPost("send-with-files")]
-        public async Task<IActionResult> SendMessageWithFiles([FromForm] ChatMessageRequest request,
-                                                              [FromForm] List<IFormFile> files)
+        [HttpGet("unread-messages")]
+        public async Task<IActionResult> GetUnreadMessages()
         {
-            try
-            {
-                var senderId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
-
-                // Hàm này trả về ChatMessageResponse
-                var response = await _chatService.SendMessageWithFilesAsync(senderId, request, files);
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        // Đánh dấu tin nhắn đã đọc
-        [HttpPost("mark-as-read/{senderId}")]
-        public async Task<IActionResult> MarkAsRead(int senderId)
-        {
-            try
-            {
-                var receiverId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
-                await _chatService.MarkMessagesAsReadAsync(receiverId, senderId);
-                return Ok(new { message = "Messages marked as read" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);
+            var response = await _chatService.GetUnreadMessagesAsync(userId);
+            return Ok(response);
         }
     }
 }

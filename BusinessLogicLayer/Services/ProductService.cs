@@ -6,10 +6,13 @@ using System.Text;
 using System.Threading.Tasks;
 using AutoMapper;
 using BusinessLogicLayer.Interfaces;
+using BusinessLogicLayer.ModelRequest.Pagination;
 using BusinessLogicLayer.ModelRequest.Product;
 using BusinessLogicLayer.ModelResponse;
+using BusinessLogicLayer.ModelResponse.Pagination;
 using BusinessLogicLayer.ModelResponse.Product;
 using BusinessLogicLayer.ModelResponse.Review;
+using CloudinaryDotNet;
 using DataAccessObject.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -90,6 +93,97 @@ namespace BusinessLogicLayer.Services
             return response;
         }
 
+        public async Task<BaseResponse<PageResult<ProductListResponse>>> GetPaginate(ProductFilterRequest request)
+        {
+            var response = new BaseResponse<PageResult<ProductListResponse>>();
+            try
+            {
+                // Filter
+                Expression<Func<Product, bool>> filter = product =>
+                    (string.IsNullOrEmpty(request.ProductName) || product.ProductName.Contains(request.ProductName)) &&
+                    (!request.MinPrice.HasValue || product.ProductPrice >= request.MinPrice.Value) &&
+                    (!request.MaxPrice.HasValue || product.ProductPrice <= request.MaxPrice.Value);
+
+                // Sort
+                Expression<Func<Product, object>> orderByExpression = request.SortBy switch
+                {
+                    "ProductName" => product => product.ProductName,
+                    "ProductPrice" => product => product.ProductPrice,
+                    "CreateAt" => product => product.CreateAt,
+                    _ => product => product.Id
+                };
+
+                // Include Images
+                Expression<Func<Product, object>>[] includeProperties = { p => p.ProductImages };
+
+                // Get paginated data and filter
+                (IEnumerable<Product> products, int totalCount) = await _unitOfWork.ProductRepository.GetPagedAndFilteredAsync(
+                    filter,
+                    request.PageIndex,
+                    request.PageSize,
+                    orderByExpression,
+                    request.Descending,
+                    includeProperties
+                );
+
+                var productResponses = new List<ProductListResponse>();
+
+                foreach (var product in products)
+                {
+                    // Get productOrder of product
+                    var productOrders = await _unitOfWork.ProductOrderRepository
+                                            .Query(po => po.ProductId == product.Id
+                                                        && po.Order.Status == Order.OrderStatus.Completed)
+                                            .Include(po => po.Order)
+                                                .ThenInclude(o => o.Reviews)
+                                            .ToListAsync();
+
+                    // Get review of product
+                    var reviews = productOrders
+                                    .SelectMany(po => po.Order.Reviews)
+                                    .ToList();
+
+                    // Calculate average rate
+                    var averageRate = reviews.Any() ? reviews.Average(r => r.Rating) : 0;
+
+                    // Calculate total sold
+                    var totalSold = productOrders.Sum(oi => oi.Quantity);
+
+                    var productResponse = new ProductListResponse
+                    {
+                        Id = product.Id,
+                        ProductName = product.ProductName,
+                        Rate = averageRate,
+                        ProductPrice = product.ProductPrice,
+                        TotalSold = totalSold,
+                        ImageUrls = product.ProductImages?.FirstOrDefault()?.ImageUrl != null
+                            ? new List<string> { product.ProductImages.FirstOrDefault()?.ImageUrl }
+                            : new List<string>()
+                    };
+
+                    productResponses.Add(productResponse);
+                }
+
+                var pageResult = new PageResult<ProductListResponse>
+                {
+                    Data = productResponses,
+                    TotalCount = totalCount
+                };
+
+                response.Success = true;
+                response.Message = "Product list retrieved successfully";
+                response.Data = pageResult;
+            }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = "Error retrieving product list";
+                response.Errors.Add(ex.Message);
+            }
+
+            return response;
+        }
+
         public async Task<BaseResponse> GetProductById(int id)
         {
             var response = new BaseResponse();
@@ -99,13 +193,6 @@ namespace BusinessLogicLayer.Services
                                         .Query(p => p.Id == id)
                                         .Include(p => p.ProductImages)
                                         .FirstOrDefaultAsync();
-
-                if (product == null)
-                {
-                    response.Success = false;
-                    response.Message = "Invalid product";
-                    return response;
-                }
 
                 // Get productOrder of product
                 var productOrders = await _unitOfWork.ProductOrderRepository
@@ -137,7 +224,40 @@ namespace BusinessLogicLayer.Services
                     Image = r.Image,
                     CreateAt = r.CreateAt,
                     UpdateAt = r.UpdateAt
-                }).ToList();
+                }).ToList(); ;
+
+                // Get follower
+                var followers = await _unitOfWork.FollowRepository
+                                    .Query(f => f.FollowerId == product.AccountId)
+                                    .CountAsync();
+
+                // Get following
+                var followings = await _unitOfWork.FollowRepository
+                                    .Query(f => f.FollowingId == product.AccountId)
+                                    .CountAsync();
+
+                // Calculate total product of provider
+                var totalProduct = await _unitOfWork.ProductRepository
+                                        .Query(p => p.AccountId == product.AccountId)
+                                        .CountAsync();
+
+                // Get provider of product
+                var provider = await _unitOfWork.AccountRepository
+                                    .Query(a => a.Id == product.AccountId)
+                                    .FirstOrDefaultAsync();
+
+                // Mapping provider to response
+                var providerResponse = new ProductProviderResponse
+                {
+                    Id = provider.Id,
+                    Slug = provider.Slug,
+                    BusinessName = provider.BusinessName,
+                    avatar = provider.Avatar ?? "null",
+                    TotalRate = totalRate,
+                    FollowersCount = followers,
+                    FollowingsCount = followings,
+                    TotalProduct = totalProduct
+                };
 
                 var productDetailResponse = new ProductDetailResponse
                 {
@@ -153,6 +273,7 @@ namespace BusinessLogicLayer.Services
                     ShipFrom = product.ShipFrom,
                     CategoryId = product.CategoryId,
                     ImageUrls = product.ProductImages?.Select(img => img.ImageUrl).ToList() ?? new List<string>(),
+                    Provider = providerResponse,
                     Reviews = reviewResponses
                 };
 
@@ -232,13 +353,129 @@ namespace BusinessLogicLayer.Services
             return response;
         }
 
-        public async Task<BaseResponse> GetProductByProviderId(int id)
+        public async Task<BaseResponse<PageResult<ProductListResponse>>> GetPaginateByCategory(FilterByCategoryRequest request)
+        {
+            var response = new BaseResponse<PageResult<ProductListResponse>>();
+            try
+            {
+                var productCategory = await _unitOfWork.ProductCategoryRepository
+                                                        .Query(p => p.Id == request.CategoryId)
+                                                        .FirstOrDefaultAsync();
+
+                if (productCategory == null)
+                {
+                    response.Success = false;
+                    response.Message = "Category not found";
+                    return response;
+                }
+
+                // Filter
+                Expression<Func<Product, bool>> filter = product =>
+                    product.CategoryId == request.CategoryId &&
+                    (string.IsNullOrEmpty(request.ProductName) && product.ProductName.Contains(request.ProductName)) &&
+                    (!request.MinPrice.HasValue || product.ProductPrice >= request.MinPrice.Value) &&
+                    (!request.MaxPrice.HasValue || product.ProductPrice <= request.MaxPrice.Value);
+
+                // Sort
+                Expression<Func<Product, object>> orderByExpression = request.SortBy switch
+                {
+                    "ProductName" => product => product.ProductName,
+                    "ProductPrice" => product => product.ProductPrice,
+                    "CreateAt" => product => product.CreateAt,
+                    _ => product => product.Id
+                };
+
+                // Include Images
+                Expression<Func<Product, object>>[] includeProperties = { p => p.ProductImages };
+
+                // Get paginated data and filter
+                (IEnumerable<Product> products, int totalCount) = await _unitOfWork.ProductRepository.GetPagedAndFilteredAsync(
+                    filter,
+                    request.PageIndex,
+                    request.PageSize,
+                    orderByExpression,
+                    request.Descending,
+                    includeProperties
+                );
+
+                var productResponses = new List<ProductListResponse>();
+
+                foreach (var product in products)
+                {
+                    // Get productOrder of product
+                    var productOrders = await _unitOfWork.ProductOrderRepository
+                                            .Query(po => po.ProductId == product.Id
+                                                        && po.Order.Status == Order.OrderStatus.Completed)
+                                            .Include(po => po.Order)
+                                                .ThenInclude(o => o.Reviews)
+                                            .ToListAsync();
+
+                    // Get review of product
+                    var reviews = productOrders
+                                    .SelectMany(po => po.Order.Reviews)
+                                    .ToList();
+
+                    // Calculate average rate
+                    var averageRate = reviews.Any() ? reviews.Average(r => r.Rating) : 0;
+
+                    // Calculate total sold
+                    var totalSold = productOrders.Sum(oi => oi.Quantity);
+
+                    var productResponse = new ProductListResponse
+                    {
+                        Id = product.Id,
+                        ProductName = product.ProductName,
+                        Rate = averageRate,
+                        ProductPrice = product.ProductPrice,
+                        TotalSold = totalSold,
+                        ImageUrls = product.ProductImages?.FirstOrDefault()?.ImageUrl != null
+                            ? new List<string> { product.ProductImages.FirstOrDefault()?.ImageUrl }
+                            : new List<string>()
+                    };
+
+                    productResponses.Add(productResponse);
+                }
+
+                var pageResult = new PageResult<ProductListResponse>
+                {
+                    Data = productResponses,
+                    TotalCount = totalCount
+                };
+
+                response.Success = true;
+                response.Message = "Product list retrieved successfully";
+                response.Data = pageResult;
+            }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = "Error retrieving product list";
+                response.Errors.Add(ex.Message);
+            }
+
+            return response;
+        }
+
+        public async Task<BaseResponse> GetProductByProvider(string slug)
         {
             var response = new BaseResponse();
             try
             {
+                var account = await _unitOfWork.AccountRepository
+                                               .Query(a => a.Slug == slug && a.ProviderVerified == true)
+                                               .FirstOrDefaultAsync();
+
+                if (account == null || account.IsProvider == false)
+                {
+                    response.Success = false;
+                    response.Message = "Provider not found";
+                    return response;
+                }
+
+                var accountId = account.Id;
+
                 var products = await _unitOfWork.ProductRepository
-                                                .Query(p => p.ProviderId == id)
+                                                .Query(p => p.AccountId == accountId)
                                                 .Include(p => p.ProductImages)
                                                 .ToListAsync();
 
@@ -283,6 +520,113 @@ namespace BusinessLogicLayer.Services
                 response.Success = true;
                 response.Message = "Product list retrieved successfully";
                 response.Data = productResponses;
+            }
+            catch (Exception ex)
+            {
+                response.Success = false;
+                response.Message = "Error retrieving product list";
+                response.Errors.Add(ex.Message);
+            }
+
+            return response;
+        }
+
+        public async Task<BaseResponse<PageResult<ProductListResponse>>> GetPaginateByProvider(FilterByProviderRequest request)
+        {
+            var response = new BaseResponse<PageResult<ProductListResponse>>();
+            try
+            {
+                var providerAccount = await _unitOfWork.AccountRepository
+                                  .Query(a => a.Slug == request.Slug && a.ProviderVerified == true)
+                                  .FirstOrDefaultAsync();
+
+                if (providerAccount == null)
+                {
+                    response.Success = false;
+                    response.Message = "Invalid provider slug";
+                    return response;
+                }
+
+                // Filter
+                Expression<Func<Product, bool>> filter = product =>
+                    (product.Account.Slug == request.Slug && product.Account.ProviderVerified == true) &&
+                    (string.IsNullOrEmpty(request.ProductName) && product.ProductName.Contains(request.ProductName)) &&
+                    (!request.MinPrice.HasValue || product.ProductPrice >= request.MinPrice.Value) &&
+                    (!request.MaxPrice.HasValue || product.ProductPrice <= request.MaxPrice.Value);
+
+                // Sort
+                Expression<Func<Product, object>> orderByExpression = request.SortBy switch
+                {
+                    "ProductName" => product => product.ProductName,
+                    "ProductPrice" => product => product.ProductPrice,
+                    "CreateAt" => product => product.CreateAt,
+                    _ => product => product.Id
+                };
+
+                // Include Images
+                Expression<Func<Product, object>>[] includeProperties =
+                {
+                    product => product.ProductImages,
+                    product => product.Account
+                };
+
+                // Get paginated data and filter
+                (IEnumerable<Product> products, int totalCount) = await _unitOfWork.ProductRepository.GetPagedAndFilteredAsync(
+                    filter,
+                    request.PageIndex,
+                    request.PageSize,
+                    orderByExpression,
+                    request.Descending,
+                    includeProperties
+                );
+
+                var productResponses = new List<ProductListResponse>();
+
+                foreach (var product in products)
+                {
+                    // Get productOrder of product
+                    var productOrders = await _unitOfWork.ProductOrderRepository
+                                            .Query(po => po.ProductId == product.Id
+                                                        && po.Order.Status == Order.OrderStatus.Completed)
+                                            .Include(po => po.Order)
+                                                .ThenInclude(o => o.Reviews)
+                                            .ToListAsync();
+
+                    // Get review of product
+                    var reviews = productOrders
+                                    .SelectMany(po => po.Order.Reviews)
+                                    .ToList();
+
+                    // Calculate average rate
+                    var averageRate = reviews.Any() ? reviews.Average(r => r.Rating) : 0;
+
+                    // Calculate total sold
+                    var totalSold = productOrders.Sum(oi => oi.Quantity);
+
+                    var productResponse = new ProductListResponse
+                    {
+                        Id = product.Id,
+                        ProductName = product.ProductName,
+                        Rate = averageRate,
+                        ProductPrice = product.ProductPrice,
+                        TotalSold = totalSold,
+                        ImageUrls = product.ProductImages?.FirstOrDefault()?.ImageUrl != null
+                            ? new List<string> { product.ProductImages.FirstOrDefault()?.ImageUrl }
+                            : new List<string>()
+                    };
+
+                    productResponses.Add(productResponse);
+                }
+
+                var pageResult = new PageResult<ProductListResponse>
+                {
+                    Data = productResponses,
+                    TotalCount = totalCount
+                };
+
+                response.Success = true;
+                response.Message = "Product list retrieved successfully";
+                response.Data = pageResult;
             }
             catch (Exception ex)
             {
@@ -344,7 +688,7 @@ namespace BusinessLogicLayer.Services
                     MadeIn = request.MadeIn,
                     ShipFrom = request.ShipFrom,
                     CategoryId = request.CategoryId,
-                    ProviderId = request.ProviderId,
+                    AccountId = request.AccountId,
                     CreateAt = DateTime.UtcNow.ToLocalTime(),
                     ProductImages = new List<ProductImage>()
                 };

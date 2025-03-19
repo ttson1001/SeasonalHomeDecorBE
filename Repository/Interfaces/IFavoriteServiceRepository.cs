@@ -8,7 +8,7 @@ using Repository.GenericRepository;
 
 namespace Repository.Interfaces
 {
-    public interface IProviderRepository : IGenericRepository<Provider>
+    public interface IFavoriteServiceRepository : IGenericRepository<FavoriteService>
     {
     }
 }
